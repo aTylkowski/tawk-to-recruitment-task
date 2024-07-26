@@ -72,6 +72,41 @@ final class MainViewModel {
         getUsersList(phrase: text)
     }
 
+    func saveUsersToCoreData(users: [UserInfo]) {
+        let context = coreDataManager.backgroundContext
+
+        context.perform {
+            users.forEach { user in
+                let fetchRequest: NSFetchRequest<UserInfoEntity> = UserInfoEntity.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "id == %d", user.id)
+
+                do {
+                    if let result = try context.fetch(fetchRequest).first {
+                        // Update existing user
+                        result.username = user.username
+                        result.score = user.score ?? 0
+                        result.profileImageUrl = user.profileImageUrl
+                        result.organizationsUrl = user.organizationsUrl
+                        result.bio = user.bio
+                    } else {
+                        // Create new user
+                        let userEntity = UserInfoEntity(context: context)
+                        userEntity.id = Int32(user.id)
+                        userEntity.username = user.username
+                        userEntity.score = user.score ?? 0
+                        userEntity.profileImageUrl = user.profileImageUrl
+                        userEntity.organizationsUrl = user.organizationsUrl
+                        userEntity.bio = user.bio
+                    }
+
+                    try context.save()
+                } catch {
+                    print("Failed to save users to CoreData: \(error)")
+                }
+            }
+        }
+    }
+
     // MARK: Private Methods
 
     private func setupNetworkMonitor() {
@@ -216,25 +251,5 @@ final class MainViewModel {
         users = []
         onDataUpdated?()
         onPlaceholderUpdated?(text)
-    }
-
-    private func saveUsersToCoreData(users: [UserInfo]) {
-        let context = coreDataManager.backgroundContext
-
-        context.perform {
-            users.forEach { user in
-                let userEntity = UserInfoEntity(context: context)
-                userEntity.username = user.username
-                userEntity.score = user.score ?? 0
-                userEntity.profileImageUrl = user.profileImageUrl
-                userEntity.organizationsUrl = user.organizationsUrl
-                userEntity.bio = user.bio
-            }
-            do {
-                try context.save()
-            } catch {
-                print("Failed to save users to CoreData: \(error)")
-            }
-        }
     }
 }
